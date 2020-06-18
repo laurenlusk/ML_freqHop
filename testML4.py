@@ -11,12 +11,21 @@ import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error
 
+def addChanData(dataset):
+    values = dataset.values.tolist()
+    ind = list()
+    for x in values:
+        ind.append(x.index(1))
+    dataset.insert(0,"Occupied Channel",ind)
+    return dataset
+
 def init():
     # load data
     dataset = pd.read_csv('all_data2.csv')
     names = list()
     names += [('chan%d' % (j+1)) for j in range(79)]
-    dataset.colums = names
+    dataset.columns = names
+    dataset = addChanData(dataset)
     
     # save to file
     dataset.to_csv('data.csv')
@@ -32,14 +41,6 @@ def fillData(data,predictions):
     """
     tot_predict = [None]*(len(data)-len(predictions))
     return tot_predict + predictions
-
-def addChanData(dataset):
-    values = dataset.values.tolist()
-    ind = list()
-    for x in values:
-        ind.append(x.index(1))
-    dataset.insert(0,"Occupied Channel",ind)
-    return dataset
 
 def plotInit(dataset):
     values = dataset.values.tolist()
@@ -116,16 +117,17 @@ def series_to_supervised(data, n_in=1, n_out=0, dropnan=True):
     if dropnan:
         agg.dropna(inplace=True)
     return agg
-    
+
+#%%    
 df = init()
 # plotInit(df)
 
 # load dataset
 dataset = pd.read_csv('data.csv',header=0,index_col=0)
-dataset = addChanData(dataset)
 values = dataset.values
 values = values.astype('float32')
 
+#%%
 # normalize features
 scaler = MinMaxScaler(feature_range=(0,1))
 scaled = scaler.fit_transform(values)
@@ -170,6 +172,7 @@ plt.plot(history.history['val_loss'],label='test')
 plt.legend()
 plt.show()
 
+#%%
 # make a prediction
 yhat = model.predict(test_X)
 test_X = test_X.reshape((test_X.shape[0],numOfLags*numFeatures))
@@ -189,5 +192,6 @@ inv_y = inv_y[:,0]
 rmse = np.sqrt(mean_squared_error(inv_y,inv_yhat))
 print('Test RMSE: %.3f' % rmse)
 
+#%%
 # plot results
 # plotResults(dataset, inv_yhat)
