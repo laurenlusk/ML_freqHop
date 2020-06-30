@@ -19,9 +19,9 @@ def addChanData(dataset):
     dataset.insert(0,"Occupied Channel",ind)
     return dataset
 
-def init():
+def init(csv):
     # load data
-    dataset = pd.read_csv('all_data2.csv')
+    dataset = pd.read_csv(csv)
     names = list()
     names += [('chan%d' % (j+1)) for j in range(79)]
     dataset.columns = names
@@ -43,47 +43,22 @@ def fillData(data,predictions):
     return tot_predict + predictions
 
 def plotInit(dataset):
-    values = dataset.values.tolist()
-    ind = list()
-    for x in values:
-        ind.append(x.index(1))
+    values = dataset['Occupied Channel']
+    plt.figure()
+    for x in range(0,len(values),625):
+        plt.hlines(values[x],x,x+624)
     # plot    
-    plt.figure()
-    plt.plot(ind)
     plt.xlabel('Time (us)')
     plt.ylabel('Channel Number')
     plt.show()
     
-def plotData(dataset):
-    values = dataset.values.tolist()
-    ind = list()
-    for x in values:
-        ind.append(x.index(1))
-    # plot    
-    plt.figure()
-    plt.plot(ind)
-    plt.xlabel('Time (us)')
-    plt.ylabel('Channel Number')
-    plt.show()
-    
-def plotResults(orig, predicted):
-    predicted = fillData(orig,predicted)
-    ogVal = orig.values.tolist()
-    pVal = predicted.values.tolist()
-    
-    ogInd = list()
-    for x in ogVal:
-        ogInd.append(x.index(1))
-    pInd = list()
-    for x in pVal:
-        pVal.append(x.index(1))
-    # plot
-    plt.figure()
-    plt.plot(ogInd, label='Original Data')
-    plt.plot(pInd, label='Predicted Data')
-    plt.xlabel('Time (us)')
-    plt.ylabel('Channel Number')
-    plt.show()
+def plotData(values,color='k',label=''):
+    for x in range(0,len(values),625):
+        if x ==0:
+            # create label for the dataset
+            plt.hlines(values[x],x,x+624,colors=color,label=label)
+        else:
+            plt.hlines(values[x],x,x+624,colors=color)
     
 def series_to_supervised(data, n_in=1, n_out=0, dropnan=True):
     """
@@ -119,7 +94,7 @@ def series_to_supervised(data, n_in=1, n_out=0, dropnan=True):
     return agg
 
 #%%    
-df = init()
+df = init('3_cycles.csv')
 # plotInit(df)
 
 # load dataset
@@ -142,7 +117,7 @@ reframed = series_to_supervised(scaled, numOfLags)
 
 # split into train and test sets
 values = reframed.values
-percentOfTraining = 0.6
+percentOfTraining = 0.45
 numTrain = int(percentOfTraining * reframed.shape[0])
 # numTrain = 54300
 train = values[:numTrain,:]
@@ -158,17 +133,21 @@ test_X = test_X.reshape((test_X.shape[0], numOfLags, numFeatures))
 
 #design network
 neurons = 80
+batchSize = 5
+e=50
 model = k.Sequential()
 model.add(k.layers.LSTM(neurons,input_shape=(train_X.shape[1],train_X.shape[2])))
 model.add(k.layers.Dense(1))
 model.compile(loss='mae',optimizer='adam')
 # fit network
-history = model.fit(train_X, train_y, epochs=50, batch_size=1500,
+history = model.fit(train_X, train_y, epochs=e, batch_size=batchSize,
                     validation_data=(test_X,test_y),verbose=2,shuffle=False)
+#%%
 # plot histroy
 plt.figure()
 plt.plot(history.history['loss'],label='train')
 plt.plot(history.history['val_loss'],label='test')
+plt.title('3 Cycles, %.0f%% Training, Batch Size: %d, Epochs: %d' % (percentOfTraining*100,batchSize,e))
 plt.legend()
 plt.show()
 
@@ -195,3 +174,12 @@ print('Test RMSE: %.3f' % rmse)
 #%%
 # plot results
 # plotResults(dataset, inv_yhat)
+plt.figure()
+plotData(inv_y,'b','Real')
+plotData(inv_yhat,'r','Model')
+plt.legend(loc='center left',bbox_to_anchor=(1,0.5))
+plt.figtext(0.91,0.4,'Test RMSE: %.3f' % rmse)
+plt.xlabel('Time (us)')
+plt.ylabel('Channel')
+plt.title('3 Cycles, %.0f%% Training, Batch Size: %d, Epochs: %d' % (percentOfTraining*100,batchSize,e))
+plt.show()
